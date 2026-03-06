@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RemoteConnect Agent</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0f1e;
+  --surf: #0f172a;
+  --surf2: #1e293b;
+  --bdr: rgba(255,255,255,.08);
+  --txt: #e2e8f0;
+  --muted: #64748b;
+  --primary: #6366f1;
+  --ok: #10b981;
+  --err: #ef4444;
+  --warn: #f59e0b;
+}
+html, body {
+  height: 100%; background: var(--bg);
+  color: var(--txt); font-family: 'Segoe UI', Inter, sans-serif;
+  user-select: none; overflow: hidden;
+}
+
+/* ── Titlebar drag area ── */
+#titlebar {
+  height: 36px; background: var(--surf);
+  border-bottom: 1px solid var(--bdr);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+#titlebar .logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600;
+}
+#titlebar .logo-icon {
+  width: 20px; height: 20px; border-radius: 5px;
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: #fff;
+}
+#titlebar .win-btns {
+  display: flex; gap: 6px;
+  -webkit-app-region: no-drag;
+}
+#titlebar .win-btns button {
+  width: 24px; height: 24px; border-radius: 50%; border: none;
+  cursor: pointer; font-size: 11px; display: flex;
+  align-items: center; justify-content: center;
+}
+.btn-min { background: #f59e0b; color: #000; }
+.btn-cls { background: #ef4444; color: #fff; }
+
+/* ── Main content ── */
+#app {
+  height: calc(100% - 36px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Screens ── */
+.screen { display: none; flex-direction: column; height: 100%; padding: 20px; }
+.screen.active { display: flex; }
+
+/* ── Login screen ── */
+#loginScreen {
+  align-items: center; justify-content: center; text-align: center; gap: 0;
+}
+.hero-icon {
+  width: 72px; height: 72px; border-radius: 20px;
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin: 0 auto 16px;
+}
+.hero-title {
+  font-size: 20px; font-weight: 700;
+  font-family: 'Segoe UI', sans-serif; margin-bottom: 6px;
+}
+.hero-sub {
+  font-size: 12px; color: var(--muted); margin-bottom: 28px; line-height: 1.6;
+}
+.field-label {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 6px; text-align: left; width: 100%;
+}
+.code-input {
+  width: 100%; background: var(--surf2);
+  border: 1px solid var(--bdr); border-radius: 10px;
+  color: var(--txt); padding: 14px 16px; font-size: 22px;
+  font-family: 'Courier New', monospace; font-weight: 700;
+  text-align: center; letter-spacing: 4px; text-transform: uppercase;
+  outline: none; margin-bottom: 8px;
+  transition: border-color .2s;
+}
+.code-input:focus { border-color: var(--primary); }
+.code-input::placeholder { letter-spacing: 0; font-size: 13px; font-family: 'Segoe UI', sans-serif; color: var(--muted); font-weight: 400; text-transform: none; }
+.connect-btn {
+  width: 100%; background: var(--primary); border: none;
+  color: #fff; padding: 13px; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  margin-top: 10px; transition: background .2s;
+  -webkit-app-region: no-drag;
+}
+.connect-btn:hover { background: #4f46e5; }
+.connect-btn:disabled { background: #334155; cursor: not-allowed; }
+.err-msg {
+  color: var(--err); font-size: 12px; margin-top: 8px;
+  min-height: 18px; text-align: center;
+}
+
+/* ── Connected screen ── */
+#connectedScreen {
+  gap: 0;
+}
+.status-card {
+  background: var(--surf); border: 1px solid var(--bdr);
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+}
+.status-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.status-row:last-child { margin-bottom: 0; }
+.status-label { font-size: 12px; color: var(--muted); }
+.status-val { font-size: 13px; font-weight: 600; }
+.dot-ok  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
+.dot-warn { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); animation: blink 1s infinite; margin-right: 6px; }
+.dot-err  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--err); margin-right: 6px; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── RC Active banner ── */
+#rcBanner {
+  display: none; background: rgba(239,68,68,.12);
+  border: 1px solid rgba(239,68,68,.3); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 12px;
+  align-items: center; gap: 10px;
+}
+#rcBanner .rc-pulse {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--err); flex-shrink: 0;
+  animation: blink .8s infinite;
+}
+.rc-text { flex: 1; font-size: 13px; font-weight: 600; color: #fca5a5; }
+.rc-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* ── Log area ── */
+#logBox {
+  background: var(--surf); border: 1px solid var(--bdr);
+  border-radius: 10px; padding: 10px 12px; flex: 1;
+  overflow-y: auto; font-size: 11px; font-family: 'Courier New', monospace;
+  color: #475569; line-height: 1.6;
+}
+#logBox .log-ok   { color: var(--ok); }
+#logBox .log-err  { color: var(--err); }
+#logBox .log-info { color: #818cf8; }
+
+.disconnect-btn {
+  width: 100%; background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.3); color: #f87171;
+  padding: 10px; border-radius: 10px; font-size: 13px;
+  font-weight: 600; cursor: pointer; margin-top: 12px;
+  -webkit-app-region: no-drag;
+}
+.disconnect-btn:hover { background: rgba(239,68,68,.2); }
+
+/* ── Steps guide ── */
+.steps {
+  background: var(--surf); border: 1px solid var(--bdr);
+  border-radius: 12px; padding: 14px; margin-bottom: 12px;
+}
+.steps-title {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 10px;
+}
+.step {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 10px; font-size: 12px;
+}
+.step:last-child { margin-bottom: 0; }
+.step-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--primary); display: flex; align-items: center;
+  justify-content: center; font-size: 10px; font-weight: 700;
+  color: #fff; flex-shrink: 0; margin-top: 1px;
+}
+.step-num.done { background: var(--ok); }
+.step-text { color: #94a3b8; line-height: 1.5; }
+.step-text strong { color: var(--txt); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    RemoteConnect Agent
+  </div>
+  <div class="win-btns">
+    <button class="btn-min" onclick="minimize()" title="Minimize to tray">−</button>
+    <button class="btn-cls" onclick="minimize()" title="Minimize to tray">×</button>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- ══ LOGIN SCREEN ══ -->
+  <div class="screen active" id="loginScreen">
+    <div class="hero-icon">⚡</div>
+    <div class="hero-title">RemoteConnect Agent</div>
+    <div class="hero-sub">
+      Enter your session code to allow<br>
+      the host to control this machine.
+    </div>
+
+    <div class="field-label">Session Code</div>
+    <input
+      type="text" id="codeInput" class="code-input"
+      placeholder="e.g. A9A0C769"
+      maxlength="12"
+      oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+      onkeydown="if(event.key==='Enter')connect()"
+    >
+    <div class="err-msg" id="errMsg"></div>
+    <button class="connect-btn" id="connectBtn" onclick="connect()">
+      ⚡ Connect &amp; Enable Control
+    </button>
+
+    <div style="margin-top: 20px; width: 100%;">
+      <div class="steps">
+        <div class="steps-title">How it works</div>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Host starts a session in the browser and shares the <strong>session code</strong> with you</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Enter the code here and click <strong>Connect</strong></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Click <strong>Allow</strong> when the host requests control in your browser</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Host can now control your <strong>full Windows desktop</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CONNECTED SCREEN ══ -->
+  <div class="screen" id="connectedScreen">
+
+    <div class="status-card">
+      <div class="status-row">
+        <span class="status-label">Session</span>
+        <span class="status-val" id="statusCode" style="font-family:monospace;color:#818cf8;letter-spacing:2px;">—</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Agent</span>
+        <span class="status-val" id="statusAgent">
+          <span class="dot-ok"></span>Running
+        </span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Server</span>
+        <span class="status-val" id="statusServer">
+          <span class="dot-warn"></span>Connecting…
+        </span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">RC Control</span>
+        <span class="status-val" id="statusRC">
+          <span class="dot-warn"></span>Waiting for host…
+        </span>
+      </div>
+      <div class="status-row" style="margin-bottom:0;">
+        <span class="status-label">Events executed</span>
+        <span class="status-val" id="statusEvents" style="color:var(--primary);">0</span>
+      </div>
+    </div>
+
+    <!-- RC Active Banner -->
+    <div id="rcBanner">
+      <div class="rc-pulse"></div>
+      <div>
+        <div class="rc-text">🖥️ Host is controlling your machine</div>
+        <div class="rc-sub">All mouse &amp; keyboard actions are being executed</div>
+      </div>
+    </div>
+
+    <!-- Next step hint -->
+    <div class="steps" id="nextStepHint">
+      <div class="steps-title">Next steps</div>
+      <div class="step">
+        <div class="step-num done" id="step1num">✓</div>
+        <div class="step-text"><strong>Agent connected</strong> — this machine is ready</div>
+      </div>
+      <div class="step">
+        <div class="step-num" id="step2num">2</div>
+        <div class="step-text" id="step2text">Open your browser, go to the session page, click <strong>Share Screen → Entire Screen</strong></div>
+      </div>
+      <div class="step">
+        <div class="step-num" id="step3num">3</div>
+        <div class="step-text" id="step3text">When host requests control, click <strong>Allow</strong> in the browser</div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div id="logBox"><span class="log-info">Agent started. Waiting for host…</span><br></div>
+
+    <button class="disconnect-btn" onclick="disconnect()">✕ Disconnect</button>
+  </div>
+
+</div>
+
+<script>
+const { ipcRenderer } = require('electron');
+
+let totalEvents = 0;
+let connected   = false;
+let sessionCode = '';
+
+// ── Minimize to tray ──
+function minimize() {
+  const { BrowserWindow } = require('@electron/remote') || {};
+  if (BrowserWindow) { BrowserWindow.getFocusedWindow()?.hide(); return; }
+  // fallback: send IPC
+  ipcRenderer.send('minimize-window');
+}
+// Also wire up to main.js hide via IPC
+ipcRenderer.on('window-minimize', () => {});
+
+// ── Connect ──
+async function connect() {
+  const code = document.getElementById('codeInput').value.trim();
+  if (code.length < 4) {
+    showErr('Enter a valid session code (4–12 characters)');
+    return;
+  }
+
+  const btn = document.getElementById('connectBtn');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+  showErr('');
+
+  const serverUrl = await ipcRenderer.invoke('get-server-url');
+
+  // Verify session exists
+  try {
+    const resp = await fetch(`${serverUrl}/api/rc_agent_connect.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `code=${code}`,
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+      showErr(data.error || 'Session not found. Check the code and try again.');
+      btn.disabled = false;
+      btn.textContent = '⚡ Connect & Enable Control';
+      return;
+    }
+
+    sessionCode = code;
+
+    // Tell main process
+    ipcRenderer.send('set-session', {
+      sessionId: data.session_id,
+      guestId:   `agent_${code}`,
+    });
+    ipcRenderer.send('rc-enable');
+
+    // Switch screen
+    document.getElementById('loginScreen').classList.remove('active');
+    document.getElementById('connectedScreen').classList.add('active');
+    document.getElementById('statusCode').textContent = code;
+
+    log('✓ Connected to session ' + code, 'ok');
+    log('Waiting for host to request control…', 'info');
+
+    connected = true;
+    // Poll heartbeat status
+    startHeartbeat(serverUrl, data.session_id, code);
+
+  } catch (e) {
+    showErr('Cannot reach server. Check your internet connection.');
+    log('Error: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '⚡ Connect & Enable Control';
+  }
+}
+
+// ── Heartbeat: check if host has granted RC ──
+let heartbeatTimer = null;
+function startHeartbeat(serverUrl, sessionId, code) {
+  heartbeatTimer = setInterval(async () => {
+    try {
+      const resp = await fetch(`${serverUrl}/api/rc_agent_poll.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `session_id=${sessionId}&guest_id=agent_${code}&heartbeat=1`,
+      });
+      const data = await resp.json();
+
+      // Update server status
+      document.getElementById('statusServer').innerHTML =
+        '<span class="dot-ok"></span>Online';
+
+      if (data.rc_active) {
+        document.getElementById('statusRC').innerHTML =
+          '<span class="dot-ok" style="background:var(--err)"></span><span style="color:#f87171;">Active — Host controlling</span>';
+        document.getElementById('rcBanner').style.display = 'flex';
+        document.getElementById('step3num').className = 'step-num done';
+        document.getElementById('step3num').textContent = '✓';
+        document.getElementById('step3text').innerHTML = '<strong>Host is controlling your machine</strong>';
+      } else {
+        document.getElementById('statusRC').innerHTML =
+          '<span class="dot-warn"></span>Waiting for host…';
+        document.getElementById('rcBanner').style.display = 'none';
+      }
+
+    } catch (e) {
+      document.getElementById('statusServer').innerHTML =
+        '<span class="dot-err"></span>Offline';
+    }
+  }, 2000);
+}
+
+// ── Status from main process ──
+ipcRenderer.on('agent-status', (e, data) => {
+  if (data.eventsProcessed > 0) {
+    totalEvents += data.eventsProcessed;
+    document.getElementById('statusEvents').textContent = totalEvents;
+    if (totalEvents === data.eventsProcessed) {
+      log('RC events incoming — executing…', 'ok');
+    }
+  }
+});
+
+// ── Disconnect ──
+function disconnect() {
+  ipcRenderer.send('rc-disable');
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  connected = false; totalEvents = 0;
+  document.getElementById('connectedScreen').classList.remove('active');
+  document.getElementById('loginScreen').classList.add('active');
+  document.getElementById('codeInput').value = '';
+  document.getElementById('connectBtn').disabled = false;
+  document.getElementById('connectBtn').textContent = '⚡ Connect & Enable Control';
+  document.getElementById('logBox').innerHTML = '<span class="log-info">Agent started. Waiting for host…</span><br>';
+  document.getElementById('statusEvents').textContent = '0';
+}
+
+// ── Helpers ──
+function showErr(msg) {
+  document.getElementById('errMsg').textContent = msg;
+}
+
+function log(msg, type = 'info') {
+  const box = document.getElementById('logBox');
+  const ts = new Date().toLocaleTimeString();
+  box.innerHTML += `<span class="log-${type}">[${ts}] ${msg}</span><br>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── Auto-focus code input ──
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => document.getElementById('codeInput').focus(), 200);
+});
+</script>
+</body>
+</html>
