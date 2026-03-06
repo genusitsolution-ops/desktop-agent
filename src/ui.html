@@ -333,12 +333,8 @@ let sessionCode = '';
 
 // ── Minimize to tray ──
 function minimize() {
-  const { BrowserWindow } = require('@electron/remote') || {};
-  if (BrowserWindow) { BrowserWindow.getFocusedWindow()?.hide(); return; }
-  // fallback: send IPC
   ipcRenderer.send('minimize-window');
 }
-// Also wire up to main.js hide via IPC
 ipcRenderer.on('window-minimize', () => {});
 
 // ── Connect ──

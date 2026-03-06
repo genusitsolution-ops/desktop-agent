@@ -200,6 +200,7 @@ function stopPolling() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // IPC from renderer
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ipcMain.on('minimize-window', () => { mainWindow?.hide(); });
 ipcMain.on('set-session', (e, data) => {
   sessionId = data.sessionId;
   guestId   = data.guestId || 'agent';
@@ -245,7 +246,6 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
     },
-    icon: path.join(__dirname, '../assets/icon.ico'),
     title: 'RemoteConnect Agent',
     show: false,
   });
@@ -267,12 +267,13 @@ function createWindow() {
 // TRAY
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createTray() {
-  // Use a simple 16x16 icon (we'll generate it from the asset)
-  const iconPath = path.join(__dirname, '../assets/tray.ico');
   try {
+    const iconPath = path.join(__dirname, '../assets/tray.ico');
     tray = new Tray(iconPath);
   } catch (_) {
-    tray = new Tray(nativeImage.createEmpty());
+    tray = new Tray(nativeImage.createFromDataURL(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAADSSURBVDiNY/z//z8DJYCJgUIwasCoAUPGAAA='
+    ));
   }
 
   tray.setToolTip('RemoteConnect Agent');

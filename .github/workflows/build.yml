@@ -3,11 +3,12 @@ name: Build RemoteConnect Agent EXE
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:   # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -16,30 +17,47 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # NO cache here — avoids package-lock.json requirement
 
       - name: Install dependencies
-        run: npm install
-        working-directory: desktop-agent
+        run: npm install --no-audit --no-fund
+        # No working-directory needed — package.json is at repo root
 
-      - name: Build Windows EXE (portable)
+      - name: Rebuild native modules for Electron
+        run: npx @electron/rebuild -f -w robotjs
+        env:
+          npm_config_msvs_version: '2022'
+
+      - name: Build Windows portable EXE
         run: npm run build:win
-        working-directory: desktop-agent
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List dist folder
+        run: dir dist
+        shell: cmd
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: RemoteConnect-Agent-Windows
-          path: desktop-agent/dist/*.exe
+          path: dist/*.exe
           retention-days: 30
+          if-no-files-found: error
 
-      - name: Create GitHub Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
         with:
-          files: desktop-agent/dist/*.exe
-          name: RemoteConnect Agent ${{ github.ref_name }}
+          name: RemoteConnect-Agent-Windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.exe"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

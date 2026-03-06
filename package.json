@@ -6,8 +6,7 @@
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.genusitsolution.remoteconnect",
@@ -18,29 +17,23 @@
     },
     "win": {
       "target": [{ "target": "portable", "arch": ["x64"] }],
-      "icon": "assets/icon.ico",
       "requestedExecutionLevel": "requireAdministrator"
     },
-    "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns"
-    },
-    "linux": {
-      "target": "AppImage"
-    },
-    "files": ["src/**/*", "assets/**/*", "node_modules/**/*"],
-    "extraResources": [],
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false
-    }
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,test,tests,example,examples}",
+      "!node_modules/**/*.d.ts"
+    ],
+    "asar": true
   },
   "dependencies": {
-    "node-fetch": "^2.7.0",
-    "robot.js": "^0.6.0"
+    "node-fetch": "2.7.0",
+    "robotjs": "^0.6.0"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.0.0"
+    "electron": "28.3.3",
+    "electron-builder": "^24.13.3",
+    "@electron/rebuild": "^3.6.0"
   }
 }
